@@ -6,11 +6,37 @@ on:
     branches: [ main ]
 
 jobs:
-  readme:
+  validate:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Ensure scaffold files exist
+
+      - name: Ensure required files exist
         run: |
           test -f README.md
           test -f LICENSE
+          test -f .release-versions.env
+          test -f sql/schema-model-memory.sql
+          test -f sql/schema-sae.sql
+          test -f sql/schema-semantic-cache.sql
+          test -f sql/schema-manifests.sql
+          test -f sql/schema-proof-bundles.sql
+
+      - name: Validate SQL schemas
+        run: bash tests/validate-schemas.sh
+
+      - name: Validate scripts (no akai dependency steps)
+        run: |
+          # Run validate-scripts but skip the doctor-deep step (no akai in CI)
+          DB=$(mktemp /tmp/aurekai-ci-XXXXXX.db)
+          bash scripts/init-db.sh "$DB"
+          sqlite3 "$DB" "INSERT INTO manifests (schema_version, name, version, operator_count, raw_json) VALUES ('aurekai.deploy.v1','aurekai','0.8.0-alpha.4',89,'{}');"
+          bash scripts/manifest-verify.sh "$DB" aurekai 0.8.0-alpha.4
+          sqlite3 "$DB" "INSERT INTO sae_dictionaries (artifact_name, artifact_ext, layer_index, size_bytes, sha256) VALUES ('t.aksae','.aksae',0,1,'abc');"
+          bash scripts/sae-audit.sh "$DB"
+          sqlite3 "$DB" "INSERT INTO proof_bundles (recipe_name, status, version, schema_version, proof_json) VALUES ('r.json','ok','0.8.0-alpha.4','aurekai.deploy.v1','{\"status\":\"ok\"}');"
+          bash scripts/proof-bundle-export.sh "$DB" /tmp/pbe-out
+          bash scripts/semantic-cache-bench.sh "$DB" 100
+          sqlite3 "$DB" "INSERT INTO semantic_cache (cache_key, value) VALUES ('k','v');"
+          sqlite3 "$DB" "INSERT INTO model_memory (artifact_name, artifact_ext) VALUES ('m.akmodel','.akmodel');"
+          bash scripts/release-gate.sh "$DB"
