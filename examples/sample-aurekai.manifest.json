@@ -1,0 +1,11 @@
+{
+  "schema_version": "aurekai.deploy.v1",
+  "name": "aurekai",
+  "version": "0.8.0-alpha.4",
+  "operator_count": 89,
+  "runtime_ref": "git:1ba1f19",
+  "helm_chart_ver": "0.8.1",
+  "pypi_ver": "0.8.0a3",
+  "npm_ver": "0.8.0-alpha.4",
+  "jsr_ver": "0.8.0-alpha.3"
+}
